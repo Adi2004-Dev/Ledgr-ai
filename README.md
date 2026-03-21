@@ -5,7 +5,7 @@
 
 ---
 
-## 🚀 Key Features (Week 1-2 Milestone)
+## 🚀 Key Features (Week 1 Milestone)
 * **Automated OCR Extraction:** Uses Tesseract OCR to scan Indian UPI screenshots and identify transaction amounts.
 * **Manual Correction Layer:** A robust UI feature allowing users to override OCR errors (e.g., separating system time from transaction amounts) for 100% data integrity.
 * **Guru-Based Advisory:** Integrated with **Google Gemini 3 Flash** to provide synthesized financial advice tailored to specific spending categories.
