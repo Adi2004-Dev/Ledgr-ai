@@ -1,32 +1,43 @@
 import streamlit as st
+import os
 from ocr_engine import extract_expense_from_image
 from advisor import get_financial_advice
+from knowledge_base import create_knowledge_base
 
 st.set_page_config(page_title="Ledgr AI", layout="wide")
-st.title("💰 Ledgr AI: Expense Manager & Advisor")
 
-# Sidebar for track-required guru selection [cite: 62, 147]
-st.sidebar.header("Advisory Settings")
-guru = st.sidebar.selectbox("Choose Your Guru", ["Ramit Sethi", "Warren Buffett", "Robert Kiyosaki"])
+# --- SIDEBAR ---
+with st.sidebar:
+    st.title("Settings")
+    guru = st.selectbox("Choose Your Guru", ["Warren Buffett", "Ramit Sethi", "Saurabh Mukherjea"])
+    
+    st.divider()
+    st.subheader("📚 Guru Knowledge Base")
+    kb_file = st.file_uploader("Upload Financial PDF", type="pdf")
+    
+    if kb_file:
+        with open("temp.pdf", "wb") as f:
+            f.write(kb_file.getbuffer())
+        with st.spinner("Training Guru Brain..."):
+            msg = create_knowledge_base("temp.pdf")
+            st.success(msg)
+        os.remove("temp.pdf")
 
-# Week 1-2 Goal: Screenshot expense extraction [cite: 19, 76]
-uploaded_file = st.file_uploader("Upload UPI Screenshot", type=['png', 'jpg', 'jpeg'])
+# --- MAIN UI ---
+st.title("💰 Ledgr AI: Expense Manager")
+uploaded_file = st.file_uploader("Upload UPI Screenshot", type=["png", "jpg", "jpeg"])
 
 if uploaded_file:
-    col1, col2 = st.columns(2)
+    with open("temp_img.png", "wb") as f:
+        f.write(uploaded_file.getbuffer())
+    data = extract_expense_from_image("temp_img.png")
     
+    col1, col2 = st.columns(2)
     with col1:
-        st.image(uploaded_file, caption="Payment Receipt", use_container_width=True)
-        
+        st.image(uploaded_file)
     with col2:
-        st.subheader("Extracted Details")
-        data = extract_expense_from_image(uploaded_file)
-        
-        # Allow manual correction as per project FAQ [cite: 240]
-        amount = st.number_input("Detected Amount (₹)", value=data['amount'], step=1.0)
-        category = st.selectbox("Category", ["Food", "Transport", "Shopping", "Rent", "Investment"])  # [cite: 82]
-        
-        if st.button("Get Guru Advice"):
-            with st.spinner(f"Consulting {guru}..."):
-                advice = get_financial_advice(f"Spent ₹{amount} on {category}", guru)
-                st.info(advice) # Displays the synthesized advice [cite: 147]
+        amount = st.number_input("Detected Amount (₹)", value=float(data['amount']))
+        if st.button("Consult Guru"):
+            with st.spinner("Analyzing..."):
+                advice = get_financial_advice(f"Amount: {amount}", guru)
+                st.info(advice)
