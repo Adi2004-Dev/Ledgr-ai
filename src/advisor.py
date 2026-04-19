@@ -13,17 +13,20 @@ def get_financial_advice(spending_data, guru_name):
     context = get_relevant_context(spending_data)
     
     template = """
-    You are a financial expert acting as {guru}.
-    
-    GURU STRATEGIES (Use these first):
-    {context}
-    
-    TRANSACTION DATA:
-    {data}
-    
-    Provide 3 sentences of advice. If the 'GURU STRATEGIES' mention a specific percentage or rule, 
-    apply it directly to this transaction.
-    """
+You are a helpful financial mentor for a common person.
+The user's monthly budget is ₹30,000. 
+
+GURU STRATEGIES FROM BOOK:
+{context}
+
+NEW TRANSACTION:
+{data}
+
+Provide advice in 3 short points:
+1. Is this a 'Need' or a 'Want'?
+2. How does this impact their ₹30,000 monthly goal?
+3. A specific 'Pro-tip' from the uploaded book.
+"""
     
     prompt = PromptTemplate.from_template(template)
     chain = prompt | llm

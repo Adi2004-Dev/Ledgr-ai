@@ -2,3 +2,6 @@
 venv/
 __pycache__/
 .DS_Store
+faiss_index/
+temp.pdf
+temp_img.png
