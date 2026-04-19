@@ -1,31 +1,32 @@
-# Ledgr-ai
-# 💰 Ledgr AI: Financial Advisor & Expense Manager
+# 💰 Ledgr AI: Agentic Personal Finance Coach
 
-**Ledgr AI** is an intelligent expense tracking and advisory system built for the **Track A: Foundation & Quick Win** milestone. It allows users to upload UPI payment screenshots (PhonePe/GPay), extracts transaction data using OCR, and provides personalized financial guidance based on the philosophies of world-class gurus like **Ramit Sethi** and **Warren Buffett**.
+**Ledgr AI** is an intelligent financial companion built for the **Agentic AI Saksham 2026** program. It transforms static financial advice into an interactive experience by combining **OCR receipt scanning** with **Retrieval-Augmented Generation (RAG)**.
 
 ---
 
-## 🚀 Key Features (Week 1 Milestone)
-* **Automated OCR Extraction:** Uses Tesseract OCR to scan Indian UPI screenshots and identify transaction amounts.
-* **Manual Correction Layer:** A robust UI feature allowing users to override OCR errors (e.g., separating system time from transaction amounts) for 100% data integrity.
-* **Guru-Based Advisory:** Integrated with **Google Gemini 3 Flash** to provide synthesized financial advice tailored to specific spending categories.
-* **Indian Tax Context:** Provides context-aware suggestions for tax-saving instruments like **ELSS** and **PPF**.
+## 🚀 Key Features
+
+* **📸 OCR Receipt Engine:** Automatically extracts amount and merchant data from UPI screenshots or receipts using Gemini 3 Vision.
+* **🧠 Guru Knowledge Base (RAG):** Upload any financial PDF (e.g., Warren Buffett’s strategies) to "train" your advisor. It uses a **FAISS Vector Database** for sub-second information retrieval.
+* **🛡️ Smart Rate-Limiting:** Implemented custom **Batch Processing** logic to handle API Quota limits (429 errors) during PDF embedding.
+* **📊 Common Man Dashboard:** Real-time budget tracking with progress bars and "Need vs. Want" analysis based on a ₹30,000 monthly goal.
+* **🎨 Professional UI:** A sleek, dark-mode dashboard built with Streamlit featuring real-time metrics and responsive layouts.
 
 ---
 
 ## 🛠️ Tech Stack
-* **Language:** Python 3.9+
-* **Framework:** Streamlit (Frontend Dashboard)
-* **Orchestration:** LangChain (LLM Chain Management)
-* **AI Model:** Google Gemini 3 Flash
-* **OCR:** PyTesseract (Tesseract Engine)
-* **Environment:** Virtual Environments (venv) with `.env` secret management.
+
+- **LLM:** Google Gemini 3 Flash & Gemini 2 Embeddings
+- **Orchestration:** LangChain
+- **Vector Store:** FAISS (Facebook AI Similarity Search)
+- **Frontend:** Streamlit
+- **Environment:** Python 3.9+
 
 ---
 
 ## 📦 Installation & Setup
 
-1. **Clone the repository:**
+1. **Clone the Repo:**
    ```bash
-   git clone [https://github.com/your-username/ledgr-ai.git](https://github.com/your-username/ledgr-ai.git)
+   git clone [https://github.com/Adi2004-Dev/ledgr-ai.git](https://github.com/Adi2004-Dev/ledgr-ai.git)
    cd ledgr-ai
