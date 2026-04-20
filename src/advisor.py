@@ -1,21 +1,27 @@
 import streamlit as st
 import os
 from langchain_google_genai import ChatGoogleGenerativeAI
+from dotenv import load_dotenv
 
-# Get API Key from Secrets (Cloud) or Env (Local)
-api_key = st.secrets.get("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
+load_dotenv()
+
+# SAFETY BLOCK: Prevents crash if secrets file is missing or broken
+api_key = None
+try:
+    # Try Cloud Secrets first
+    api_key = st.secrets["GEMINI_API_KEY"]
+except Exception:
+    # Fallback to local .env if on Mac
+    api_key = os.getenv("GOOGLE_API_KEY")
 
 def get_financial_advice(transaction_data, mentor_name):
-    """Fetches AI financial insight based on user data"""
     if not api_key:
-        return "AI Advisor offline (No API Key found)."
+        return "AI Guru is currently offline (Key missing)."
     
     try:
-        # Using 1.5-flash for higher quota/speed
         model = ChatGoogleGenerativeAI(model="gemini-1.5-flash", google_api_key=api_key)
-        prompt = f"You are {mentor_name}. Give a snappy, 1-sentence financial tip for this expense: {transaction_data}"
-        
+        prompt = f"You are {mentor_name}. Give a 1-sentence tip for: {transaction_data}"
         response = model.invoke(prompt)
         return response.content
     except Exception as e:
-        return f"Guru is busy right now. (Error: {e})"
+        return f"The Guru is meditating... (Error: {e})"
