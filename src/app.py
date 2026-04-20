@@ -1,136 +1,100 @@
 import streamlit as st
 import os
+import pandas as pd
+import time
+from datetime import datetime
+from database import save_to_firestore, load_from_firestore, delete_all_firestore_data
 from ocr_engine import extract_expense_from_image
 from advisor import get_financial_advice
-from knowledge_base import create_knowledge_base
 
 # 1. Page Configuration
-st.set_page_config(page_title="Ledgr AI | Personal Finance Coach", page_icon="💰", layout="wide")
+st.set_page_config(page_title="Ledgr AI Pro", page_icon="💰", layout="wide")
 
-# 2. Dark Mode Professional CSS
+# 2. UI Styling
 st.markdown("""
     <style>
-    .main { background-color: #0e1117; }
-    [data-testid="stMetric"] {
-        background-color: #1e2130;
-        padding: 20px;
-        border-radius: 12px;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-        border: 1px solid #3d4156;
-    }
-    [data-testid="stMetricLabel"] { color: #a1a1aa !important; font-size: 16px; }
-    [data-testid="stMetricValue"] { color: #ffffff !important; font-weight: bold; }
-    .stButton>button {
-        width: 100%;
-        border-radius: 8px;
-        height: 3.5em;
-        background-color: #007bff;
-        color: white;
-        font-weight: bold;
-        border: none;
-    }
+    [data-testid="stMetric"] { background-color: #1e2130; padding: 15px; border-radius: 10px; border: 1px solid #3d4156; }
+    .stButton>button { width: 100%; border-radius: 8px; }
     </style>
     """, unsafe_allow_html=True)
 
-# 3. Initialize Persistent Data (Session State)
-if 'total_spent' not in st.session_state:
-    st.session_state.total_spent = 14200  # Starting base spend
-if 'last_detected' not in st.session_state:
-    st.session_state.last_detected = 0
-
-monthly_budget = 30000
+# 3. Session State
+if 'last_detected' not in st.session_state: st.session_state.last_detected = 0.0
+if 'current_advice' not in st.session_state: st.session_state.current_advice = ""
 
 # --- SIDEBAR ---
 with st.sidebar:
-    st.image("https://cdn-icons-png.flaticon.com/512/2854/2854537.png", width=70)
-    st.title("Ledgr AI Settings")
-    guru = st.selectbox("🎯 Choose Your Mentor", ["Warren Buffett", "Ramit Sethi", "Saurabh Mukherjea"])
+    st.title("💰 Ledgr Settings")
+    user_budget = st.number_input("🎯 Monthly Budget (₹)", min_value=1000, value=30000, step=1000)
+    guru = st.selectbox("🧔 AI Mentor", ["Warren Buffett", "Ramit Sethi", "Saurabh Mukherjea"])
     
     st.divider()
-    st.subheader("📚 Guru Knowledge Base")
-    kb_file = st.file_uploader("Upload PDF", type="pdf")
-    
-    if kb_file:
-        with open("temp.pdf", "wb") as f:
-            f.write(kb_file.getbuffer())
-        with st.spinner("🧠 Training Agent..."):
-            msg = create_knowledge_base("temp.pdf")
-            st.success(msg)
-        os.remove("temp.pdf")
-    
-    if st.button("Reset Monthly Spend"):
-        st.session_state.total_spent = 0
-        st.rerun()
-
-# --- MAIN DASHBOARD ---
-st.title("💰 Ledgr AI: Expense Manager")
-st.caption(f"Personalized Advice by: **{guru}** | Monthly Budget Goal: **₹30,000**")
-
-# Section 1: Dynamic Metrics & Progress Bar
-display_total = st.session_state.total_spent + st.session_state.last_detected
-
-m1, m2, m3 = st.columns(3)
-m1.metric("Total Spent", f"₹{display_total}", f"+₹{st.session_state.last_detected}" if st.session_state.last_detected > 0 else None)
-m2.metric("Remaining", f"₹{max(0, monthly_budget - display_total)}")
-m3.metric("Goal Status", "On Track" if display_total < monthly_budget else "Limit Reached")
-
-st.write("### 📈 Monthly Budget Usage")
-usage_pct = min(display_total / monthly_budget, 1.0)
-st.progress(usage_pct)
-
-if usage_pct > 0.85:
-    st.warning(f"🚨 Warning: You've exhausted {int(usage_pct*100)}% of your budget!")
-else:
-    st.success(f"✅ Budget usage is at {int(usage_pct*100)}%.")
-
-st.divider()
-
-# Section 2: Upload & Analysis
-uploaded_file = st.file_uploader("📸 Upload UPI Screenshot or Receipt", type=["png", "jpg", "jpeg"])
-
-if uploaded_file:
-    # We only process if it's a new file upload
-    with open("temp_img.png", "wb") as f:
-        f.write(uploaded_file.getbuffer())
-    
-    with st.spinner("🔍 AI is reading receipt..."):
-        # This calls your ocr_engine.py
-        data = extract_expense_from_image("temp_img.png")
-        st.session_state.last_detected = float(data.get('amount', 0))
-    
-    col_img, col_data = st.columns([1, 1.2])
-    
-    with col_img:
-        st.subheader("Receipt Preview")
-        st.image(uploaded_file, use_container_width=True)
-    
-    with col_data:
-        st.subheader("Confirm Details")
-        # Pre-fill inputs with OCR data
-        final_amount = st.number_input("Amount (₹)", value=float(st.session_state.last_detected))
-        category = st.selectbox("Category", ["Food", "Transport", "Shopping", "Investment", "Bills"])
-        
-        if st.button(f"✨ Get {guru}'s Advice"):
-            # Update the permanent total when the user confirms with advice
-            st.session_state.total_spent += final_amount
-            st.session_state.last_detected = 0 # reset for next upload
-            
-            with st.spinner("Searching Knowledge Base..."):
-                user_query = f"Amount: {final_amount}, Category: {category}"
-                advice = get_financial_advice(user_query, guru)
-                
-                st.markdown(f"### 🧔 {guru}'s Insight")
-                st.info(advice)
-                
-                with st.expander("🔗 RAG Source Context"):
-                    st.write("Retrieved specific spending rules from the uploaded PDF to verify this transaction against your long-term goals.")
-            
-            # Auto-refresh to update the top Spend Bar
+    if st.button("🔄 RESET ALL DATA"):
+        if delete_all_firestore_data():
+            st.success("Cloud Data Wiped!")
+            st.session_state.current_advice = ""
+            time.sleep(1)
             st.rerun()
 
-    os.remove("temp_img.png")
-else:
-    st.info("👋 Upload a screenshot to see your budget progress update live!")
+    st.divider()
+    st.subheader("🛠️ Debug Tools")
+    if st.button("📡 Test Cloud Connection"):
+        test_data = {"Date": str(datetime.now().date()), "Amount": 1.0, "Category": "Test", "Method": "Debug", "Advice": "Cloud working!"}
+        if save_to_firestore(test_data): st.success("✅ Firebase Live!")
+        else: st.error("❌ Connection Failed")
 
-st.divider()
-st.caption("Ledgr AI | Your Personal Finance Coach | Powered by Google Gemini & LangChain")
+# --- DATA FETCHING ---
+cloud_records = load_from_firestore()
+spent_this_month = 0.0
+
+if cloud_records:
+    df = pd.DataFrame(cloud_records)
+    current_month = datetime.now().strftime("%Y-%m")
+    # Convert string dates to pandas datetime to filter
+    df['Date_dt'] = pd.to_datetime(df['Date'])
+    month_df = df[df['Date_dt'].dt.strftime("%Y-%m") == current_month]
+    spent_this_month = month_df['Amount'].sum()
+
+# --- MAIN DASHBOARD ---
+st.title("📊 Financial Command Center")
+m1, m2, m3 = st.columns(3)
+m1.metric("Spent this Month", f"₹{spent_this_month:,.2f}")
+m2.metric("Remaining", f"₹{max(0.0, user_budget - spent_this_month):,.2f}")
+m3.metric("Status", "Good" if spent_this_month < user_budget else "Over Budget")
+
+st.progress(min(spent_this_month / user_budget, 1.0))
+
+if st.session_state.current_advice:
+    st.info(f"🧔 **{guru}'s Insight:** {st.session_state.current_advice}")
+
+# --- TABS ---
+tab_entry, tab_history = st.tabs(["➕ Add Entry", "📜 Cloud History"])
+
+with tab_entry:
+    method = st.radio("Entry Method:", ["AI Smart Scan", "Manual Entry"], horizontal=True)
+    
+    if method == "Manual Entry":
+        c1, c2, c3 = st.columns(3)
+        m_amt = c1.number_input("Amount (₹)", min_value=0.0)
+        m_cat = c2.selectbox("Category", ["Food", "Transport", "Bills", "Health", "Shopping", "Other"])
+        m_dt = c3.date_input("Date", value=datetime.now())
+        
+        use_ai = st.checkbox("Consult Guru? (Uses Quota)", value=False)
+        
+        if st.button("➕ Log Expense"):
+            if m_amt > 0:
+                advice = "Logged manually."
+                if use_ai:
+                    with st.spinner("Asking Guru..."):
+                        advice = get_financial_advice(f"Spent ₹{m_amt} on {m_cat}", guru)
+                
+                save_to_firestore({"Date": str(m_dt), "Amount": m_amt, "Category": m_cat, "Method": "Manual", "Advice": advice})
+                st.session_state.current_advice = advice
+                st.rerun()
+
+with tab_history:
+    if cloud_records:
+        st.subheader("Cloud Records (Live from Firebase)")
+        st.dataframe(pd.DataFrame(cloud_records).drop(columns=['Date_dt'], errors='ignore'), use_container_width=True)
+    else:
+        st.info("No cloud records found.")

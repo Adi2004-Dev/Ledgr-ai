@@ -1,38 +1,21 @@
+import streamlit as st
 import os
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain.prompts import PromptTemplate
-from knowledge_base import get_relevant_context
 
-def get_financial_advice(spending_data, guru_name):
-    llm = ChatGoogleGenerativeAI(
-        model="gemini-3-flash-preview", 
-        google_api_key=os.getenv("GOOGLE_API_KEY")
-    )
-    
-    # Fetch the real strategies from your uploaded PDF
-    context = get_relevant_context(spending_data)
-    
-    template = """
-You are a helpful financial mentor for a common person.
-The user's monthly budget is ₹30,000. 
+# Get API Key from Secrets (Cloud) or Env (Local)
+api_key = st.secrets.get("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
 
-GURU STRATEGIES FROM BOOK:
-{context}
-
-NEW TRANSACTION:
-{data}
-
-Provide advice in 3 short points:
-1. Is this a 'Need' or a 'Want'?
-2. How does this impact their ₹30,000 monthly goal?
-3. A specific 'Pro-tip' from the uploaded book.
-"""
-    
-    prompt = PromptTemplate.from_template(template)
-    chain = prompt | llm
+def get_financial_advice(transaction_data, mentor_name):
+    """Fetches AI financial insight based on user data"""
+    if not api_key:
+        return "AI Advisor offline (No API Key found)."
     
     try:
-        response = chain.invoke({"guru": guru_name, "data": spending_data, "context": context})
+        # Using 1.5-flash for higher quota/speed
+        model = ChatGoogleGenerativeAI(model="gemini-1.5-flash", google_api_key=api_key)
+        prompt = f"You are {mentor_name}. Give a snappy, 1-sentence financial tip for this expense: {transaction_data}"
+        
+        response = model.invoke(prompt)
         return response.content
     except Exception as e:
-        return f"Advisor Error: {str(e)}"
+        return f"Guru is busy right now. (Error: {e})"
