@@ -2,7 +2,7 @@ import os
 import streamlit as st
 import google.generativeai as genai
 
-# Load .env file automatically
+# Load .env file automatically (for local testing on your Mac)
 try:
     from dotenv import load_dotenv
     load_dotenv(override=True)
@@ -11,8 +11,10 @@ except ImportError:
 
 def get_financial_advice(transaction_details, mentor_name="Warren Buffett"):
     try:
-        # 1. Fetch your API Key
+        # 1. Try to fetch the API Key from your Mac's .env file first
         api_key = os.getenv("GEMINI_API_KEY")
+        
+        # 2. If it's empty (because it's on the cloud), fetch from Streamlit Secrets
         if not api_key:
             try:
                 api_key = st.secrets["GEMINI_API_KEY"]
@@ -20,13 +22,13 @@ def get_financial_advice(transaction_details, mentor_name="Warren Buffett"):
                 pass
                 
         if not api_key:
-            return "⚠️ API Key missing. Please check your .env file."
+            return "⚠️ API Key missing. Please check your .env file or Streamlit Secrets."
             
-        # 2. Configure the Google SDK
+        # 3. Configure the Google SDK securely
         genai.configure(api_key=api_key)
         
-        # 3. Call the EXACT model your key supports!
-        model = genai.GenerativeModel("gemini-2.5-flash")
+        # 4. Call the stable 1.5 flash model
+        model = genai.GenerativeModel("gemini-1.5-flash")
         
         prompt = (
             f"You are the financial expert {mentor_name}. "
