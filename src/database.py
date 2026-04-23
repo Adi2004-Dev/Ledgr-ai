@@ -1,48 +1,73 @@
-import os
+import firebase_admin
+from firebase_admin import credentials, firestore
 import streamlit as st
+import json
+import os
 
 # ==========================================
-# MAC O.S. FIREBASE BYPASS HACKS
-# These two lines stop Apple from freezing the Google connection
-os.environ["OBJC_DISABLE_INITIALIZE_FORK_SAFETY"] = "YES"
-os.environ["GRPC_POLL_STRATEGY"] = "poll"
+# 1. FIREBASE INITIALIZATION (Dual-Mode)
 # ==========================================
-
-def get_db():
-    # Lazy import prevents crashing on startup
-    import firebase_admin
-    from firebase_admin import credentials, firestore
-    
-    if not firebase_admin._apps:
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        path_to_key = os.path.join(current_dir, 'firebase_key.json')
-        
-        if os.path.exists(path_to_key):
-            cred = credentials.Certificate(path_to_key)
-            firebase_admin.initialize_app(cred)
-        else:
-            st.error("❌ Cannot find firebase_key.json file.")
-            return None
+if not firebase_admin._apps:
+    try:
+        # MODE A: Cloud Mode (Looks for the key in Streamlit Secrets)
+        if "FIREBASE_JSON" in st.secrets:
+            key_dict = json.loads(st.secrets["FIREBASE_JSON"])
+            cred = credentials.Certificate(key_dict)
             
-    return firestore.client()
+        # MODE B: Local Mode (Looks for your secure local file)
+        else:
+            # It checks both the main folder and the src folder just to be safe
+            file_path = "src/firebase_key.json" if os.path.exists("src/firebase_key.json") else "firebase_key.json"
+            cred = credentials.Certificate(file_path)
+            
+        firebase_admin.initialize_app(cred)
+        print("✅ Firebase successfully connected.")
+        
+    except Exception as e:
+        print(f"🚨 Error connecting to Firebase: {e}")
+
+# Connect to the Firestore database
+db = firestore.client()
+
+
+# ==========================================
+# 2. DATABASE FUNCTIONS
+# ==========================================
+
+def save_to_firestore(transaction_data):
+    """
+    Saves a new transaction record to the Firestore 'transactions' collection.
+    """
+    try:
+        # We add a hidden server timestamp so Firebase can sort them accurately
+        transaction_data["timestamp"] = firestore.SERVER_TIMESTAMP
+        
+        # Add the document to the 'transactions' collection
+        db.collection("transactions").add(transaction_data)
+        return True
+    except Exception as e:
+        print(f"🚨 Error saving to Firestore: {e}")
+        return False
 
 def load_from_firestore():
+    """
+    Loads all transactions from Firestore, sorting them so the newest are at the top.
+    """
     try:
-        db = get_db()
-        if db:
-            # Added a strict timeout to the Firebase call itself
-            docs = db.collection("ledger").order_by("Date", direction="DESCENDING").limit(20).get(timeout=3)
-            return [doc.to_dict() for doc in docs]
+        # Fetch records ordered by Date (Newest first)
+        docs = db.collection("transactions").order_by(
+            "Date", direction=firestore.Query.DESCENDING
+        ).stream()
+        
+        records = []
+        for doc in docs:
+            data = doc.to_dict()
+            # Remove the hidden timestamp before sending it to the Streamlit table
+            if "timestamp" in data:
+                del data["timestamp"]
+            records.append(data)
+            
+        return records
     except Exception as e:
-        print(f"Cloud load failed: {e}")
-    return []
-
-def save_to_firestore(data):
-    try:
-        db = get_db()
-        if db:
-            db.collection("ledger").add(data)
-            return True
-    except Exception as e:
-        print(f"Cloud save failed: {e}")
-    return False
+        print(f"🚨 Error loading from Firestore: {e}")
+        return []
