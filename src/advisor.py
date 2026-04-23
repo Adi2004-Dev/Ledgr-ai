@@ -1,27 +1,41 @@
-import streamlit as st
 import os
-from langchain_google_genai import ChatGoogleGenerativeAI
-from dotenv import load_dotenv
+import streamlit as st
+import google.generativeai as genai
 
-load_dotenv()
-
-# SAFETY BLOCK: Prevents crash if secrets file is missing or broken
-api_key = None
+# Load .env file automatically
 try:
-    # Try Cloud Secrets first
-    api_key = st.secrets["GEMINI_API_KEY"]
-except Exception:
-    # Fallback to local .env if on Mac
-    api_key = os.getenv("GOOGLE_API_KEY")
+    from dotenv import load_dotenv
+    load_dotenv(override=True)
+except ImportError:
+    pass
 
-def get_financial_advice(transaction_data, mentor_name):
-    if not api_key:
-        return "AI Guru is currently offline (Key missing)."
-    
+def get_financial_advice(transaction_details, mentor_name="Warren Buffett"):
     try:
-        model = ChatGoogleGenerativeAI(model="gemini-1.5-flash", google_api_key=api_key)
-        prompt = f"You are {mentor_name}. Give a 1-sentence tip for: {transaction_data}"
-        response = model.invoke(prompt)
-        return response.content
+        # 1. Fetch your API Key
+        api_key = os.getenv("GEMINI_API_KEY")
+        if not api_key:
+            try:
+                api_key = st.secrets["GEMINI_API_KEY"]
+            except Exception:
+                pass
+                
+        if not api_key:
+            return "⚠️ API Key missing. Please check your .env file."
+            
+        # 2. Configure the Google SDK
+        genai.configure(api_key=api_key)
+        
+        # 3. Call the EXACT model your key supports!
+        model = genai.GenerativeModel("gemini-2.5-flash")
+        
+        prompt = (
+            f"You are the financial expert {mentor_name}. "
+            f"Give a short, punchy, 2-sentence piece of financial advice or feedback "
+            f"regarding this specific transaction: {transaction_details}"
+        )
+        
+        response = model.generate_content(prompt)
+        return response.text.replace("\n", " ").strip()
+        
     except Exception as e:
-        return f"The Guru is meditating... (Error: {e})"
+        return f"⚠️ AI Connection Error: {str(e)}"
