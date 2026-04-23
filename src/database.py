@@ -44,9 +44,8 @@ def save_to_firestore(transaction_data):
 
 def load_from_firestore():
     try:
-        docs = db.collection("transactions").order_by(
-            "Date", direction=firestore.Query.DESCENDING
-        ).stream()
+        # 1. Grab raw data directly using .get() to avoid index hangs
+        docs = db.collection("transactions").get()
         
         records = []
         for doc in docs:
@@ -55,7 +54,10 @@ def load_from_firestore():
                 del data["timestamp"]
             records.append(data)
             
+        # 2. Sort the dates manually in Python so it loads instantly
+        records.sort(key=lambda x: x.get("Date", ""), reverse=True)
         return records
+        
     except Exception as e:
         print(f"🚨 Error loading from Firestore: {e}")
         return []

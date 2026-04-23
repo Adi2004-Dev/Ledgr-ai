@@ -20,7 +20,7 @@ if 'ocr_amt' not in st.session_state:
     st.session_state.ocr_amt = 0.0
 if 'ocr_cat' not in st.session_state:
     st.session_state.ocr_cat = "Other"
-# NEW: Catch the latest advice so we can display it under the button
+# Catch the latest advice so we can display it under the button
 if 'latest_advice' not in st.session_state:
     st.session_state.latest_advice = None
 if 'latest_mentor' not in st.session_state:
@@ -49,7 +49,7 @@ with st.sidebar:
             data = load_from_firestore()
             if data:
                 st.session_state.ledger_records = data
-                st.success("Synced!")
+                st.success("Synced Successfully!")
             else:
                 st.warning("Database empty or offline.")
 
@@ -110,7 +110,6 @@ with tab_manual:
                 if ask_ai:
                     with st.spinner(f"Getting AI insights from {ai_mentor}..."):
                         advice = get_financial_advice(f"Spent ₹{amt} on {cat}", ai_mentor)
-                        # Save advice to show it right under the button
                         st.session_state.latest_advice = advice
                         st.session_state.latest_mentor = ai_mentor
                 else:
@@ -121,11 +120,12 @@ with tab_manual:
                 save_to_firestore(new_tx) 
                 
                 st.balloons()
-                st.rerun()
+                st.success("✅ Transaction Logged Successfully!")
+                # Removed st.rerun() to fix the double-click bug
             else:
                 st.warning("Amount must be greater than 0.")
                 
-    # ✨ THE NEW ADVICE BOX (Directly under the Manual Form) ✨
+    # ✨ THE NEW ADVICE BOX ✨
     if st.session_state.latest_advice:
         st.info(f"💡 **{st.session_state.latest_mentor} says:** {st.session_state.latest_advice}")
 
@@ -166,7 +166,6 @@ with tab_scan:
                     with st.spinner(f"Getting AI insights from {ai_mentor}..."):
                         advice = get_financial_advice(f"Spent ₹{final_amt} on {final_cat}", ai_mentor)
                         
-                        # Save advice to show it under the scanner button
                         st.session_state.latest_advice = advice
                         st.session_state.latest_mentor = ai_mentor
                         
@@ -175,13 +174,14 @@ with tab_scan:
                         save_to_firestore(new_tx)
                         
                         st.balloons()
+                        st.success("✅ Transaction Logged Successfully!")
                         st.session_state.ocr_amt = 0.0
                         st.session_state.ocr_cat = "Other"
-                        st.rerun()
+                        # Removed st.rerun() to fix the double-click bug
                 else:
                     st.warning("Amount must be greater than 0.")
                     
-        # ✨ THE NEW ADVICE BOX (Directly under the Scanner Form) ✨
+        # ✨ THE NEW ADVICE BOX ✨
         if st.session_state.latest_advice:
             st.info(f"💡 **{st.session_state.latest_mentor} says:** {st.session_state.latest_advice}")
 
