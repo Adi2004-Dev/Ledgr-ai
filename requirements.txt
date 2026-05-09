@@ -8,3 +8,4 @@ python-dotenv
 firebase-admin
 requests
 google-generativeai
+plotly

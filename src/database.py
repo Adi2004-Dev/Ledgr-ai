@@ -21,19 +21,21 @@ db = firestore.client()
 # ==========================================
 # 2. DATABASE FUNCTIONS
 # ==========================================
-def save_to_firestore(transaction_data):
+def save_to_firestore(transaction_data, user_id):
     try:
         transaction_data["timestamp"] = firestore.SERVER_TIMESTAMP
+        transaction_data["user_id"] = user_id  # 🔒 Tag the transaction with the user's name
         db.collection("transactions").add(transaction_data)
         return True
     except Exception as e:
         print(f"🚨 Error saving to Firestore: {e}")
         return False
 
-def load_from_firestore():
+def load_from_firestore(user_id):
     try:
-        # Load directly and sort in Python to prevent infinite loading bugs
-        docs = db.collection("transactions").get()
+        # 🔒 ONLY fetch documents that belong to this specific user
+        docs = db.collection("transactions").where("user_id", "==", user_id).get()
+        
         records = []
         for doc in docs:
             data = doc.to_dict()
