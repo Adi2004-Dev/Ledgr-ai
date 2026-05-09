@@ -8,3 +8,9 @@ temp_img.png
 src/firebase_key.json
 .env
 .streamlit/
+# Ignore Streamlit Secrets
+src/.streamlit/secrets.toml
+
+# Ignore Environment variables
+.env
+__pycache__/
