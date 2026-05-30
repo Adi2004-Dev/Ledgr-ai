@@ -2,23 +2,18 @@ import firebase_admin
 from firebase_admin import credentials, firestore
 import requests
 import streamlit as st
+import json
 
-import os
-
-# New dynamic path lookup
+# 1. Initialize Firebase Securely from Secrets
 if not firebase_admin._apps:
-    # Gets the directory where database.py lives (src/)
-    current_dir = os.path.dirname(os.path.abspath(__file__))
+    # Read the JSON text from Streamlit Secrets and convert it to a dictionary
+    key_dict = json.loads(st.secrets["FIREBASE_JSON"])
     
-    # Looks for firebase_key.json inside that same folder
-    config_path = os.path.join(current_dir, "firebase_key.json")
-    
-    # Fallback: If it's not in src/, look in the main parent folder
-    if not os.path.exists(config_path):
-        config_path = os.path.join(os.path.dirname(current_dir), "firebase_key.json")
-        
-    cred = credentials.Certificate(config_path)
+    # Pass the dictionary directly to Firebase!
+    cred = credentials.Certificate(key_dict)
     firebase_admin.initialize_app(cred)
+
+db = firestore.client()
 
 db = firestore.client()
 
