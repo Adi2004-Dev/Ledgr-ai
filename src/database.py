@@ -1,30 +1,32 @@
 import firebase_admin
 from firebase_admin import credentials, firestore
+import requests
+import streamlit as st
+
 import os
 
-# ==========================================
-# 1. FIREBASE INITIALIZATION (Local Only)
-# ==========================================
+# New dynamic path lookup
 if not firebase_admin._apps:
-    try:
-        # Strictly look for the local file on your Mac
-        file_path = "src/firebase_key.json" if os.path.exists("src/firebase_key.json") else "firebase_key.json"
-        cred = credentials.Certificate(file_path)
-        firebase_admin.initialize_app(cred)
-        print("✅ Local Firebase successfully connected.")
-    except Exception as e:
-        print(f"🚨 Error connecting to Firebase: {e}")
+    # Gets the directory where database.py lives (src/)
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    
+    # Looks for firebase_key.json inside that same folder
+    config_path = os.path.join(current_dir, "firebase_key.json")
+    
+    # Fallback: If it's not in src/, look in the main parent folder
+    if not os.path.exists(config_path):
+        config_path = os.path.join(os.path.dirname(current_dir), "firebase_key.json")
+        
+    cred = credentials.Certificate(config_path)
+    firebase_admin.initialize_app(cred)
 
-# Connect to the database
 db = firestore.client()
 
-# ==========================================
-# 2. DATABASE FUNCTIONS
-# ==========================================
+# 2. Database Read/Write Functions
 def save_to_firestore(transaction_data, user_id):
     try:
         transaction_data["timestamp"] = firestore.SERVER_TIMESTAMP
-        transaction_data["user_id"] = user_id  # 🔒 Tag the transaction with the user's name
+        transaction_data["user_id"] = user_id  # 🔒 Securely tag to user
         db.collection("transactions").add(transaction_data)
         return True
     except Exception as e:
@@ -48,3 +50,36 @@ def load_from_firestore(user_id):
     except Exception as e:
         print(f"🚨 Error loading from Firestore: {e}")
         return []
+
+# 3. Authentication Functions
+def sign_up_with_email_and_password(email, password):
+    """Creates a new user in Firebase Auth"""
+    try:
+        api_key = st.secrets["FIREBASE_WEB_API_KEY"]
+        url = f"https://identitytoolkit.googleapis.com/v1/accounts:signUp?key={api_key}"
+        payload = {"email": email, "password": password, "returnSecureToken": True}
+        
+        response = requests.post(url, json=payload)
+        data = response.json()
+        
+        if "error" in data:
+            return False, data["error"]["message"]
+        return True, data["localId"] # Returns unique User ID (UID)
+    except Exception as e:
+        return False, str(e)
+
+def sign_in_with_email_and_password(email, password):
+    """Authenticates an existing user"""
+    try:
+        api_key = st.secrets["FIREBASE_WEB_API_KEY"]
+        url = f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={api_key}"
+        payload = {"email": email, "password": password, "returnSecureToken": True}
+        
+        response = requests.post(url, json=payload)
+        data = response.json()
+        
+        if "error" in data:
+            return False, data["error"]["message"]
+        return True, data["localId"] # Returns unique User ID (UID)
+    except Exception as e:
+        return False, str(e)

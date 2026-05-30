@@ -6,9 +6,11 @@ import plotly.express as px
 
 warnings.filterwarnings("ignore")
 
-from database import save_to_firestore, load_from_firestore
+# Import our custom backend functions
+from database import save_to_firestore, load_from_firestore, sign_in_with_email_and_password, sign_up_with_email_and_password
 from advisor import get_financial_advice, get_monthly_audit, get_chat_response
-from ocr_engine import extract_expense_from_image
+# (Assuming ocr_engine.py is in your src folder handling the image extraction)
+from ocr_engine import extract_expense_from_image 
 
 st.set_page_config(page_title="Ledgr AI: Expense Manager", page_icon="💰", layout="wide")
 
@@ -31,32 +33,66 @@ if 'chat_messages' not in st.session_state:
     st.session_state.chat_messages = []
 
 # ==========================================
-# 🔒 THE LOGIN GATE
+# 🔒 THE LOGIN GATE (Firebase Auth)
 # ==========================================
 if st.session_state.current_user is None:
     st.title("🔒 Welcome to Ledgr AI")
     st.markdown("Your personal AI-powered financial vault.")
     
     with st.container(border=True):
-        with st.form("login_form"):
-            username_input = st.text_input("Enter a unique username to open your vault:")
-            submit_login = st.form_submit_button("Enter Vault 🚀", use_container_width=True)
-            
-            if submit_login:
-                if username_input.strip() == "":
-                    st.error("Please enter a username!")
-                else:
-                    st.session_state.current_user = username_input.strip().lower()
-                    st.session_state.ledger_records = [] 
-                    st.rerun()
+        tab_signin, tab_signup = st.tabs(["🔑 Sign In", "📝 Create Account"])
+        
+        with tab_signin:
+            with st.form("signin_form"):
+                email_in = st.text_input("Email").strip().lower()
+                pass_in = st.text_input("Password", type="password")
+                submit_signin = st.form_submit_button("Enter Vault 🚀", use_container_width=True)
+                
+                if submit_signin:
+                    if email_in and pass_in:
+                        with st.spinner("Authenticating..."):
+                            success, result = sign_in_with_email_and_password(email_in, pass_in)
+                            
+                            if success:
+                                st.session_state.current_user = result 
+                                st.session_state.ledger_records = []
+                                st.rerun()
+                            else:
+                                # Friendly custom error messages
+                                if "EMAIL_NOT_FOUND" in result or "INVALID_LOGIN_CREDENTIALS" in result:
+                                    st.error("🕵️‍♂️ We couldn't find an account with that email. Head over to the 'Create Account' tab to open your vault!")
+                                elif "INVALID_PASSWORD" in result:
+                                    st.error("🔑 Incorrect password. Please try again.")
+                                else:
+                                    st.error(f"Login failed: {result.replace('_', ' ').title()}")
+                    else:
+                        st.warning("Please enter your email and password.")
+
+        with tab_signup:
+            with st.form("signup_form"):
+                email_up = st.text_input("New Email").strip().lower()
+                pass_up = st.text_input("New Password", type="password", help="Must be at least 6 characters.")
+                submit_signup = st.form_submit_button("Create Account 🚀", use_container_width=True)
+                
+                if submit_signup:
+                    if len(pass_up) < 6:
+                        st.error("Password must be at least 6 characters long.")
+                    elif email_up and pass_up:
+                        with st.spinner("Creating your secure vault..."):
+                            success, result = sign_up_with_email_and_password(email_up, pass_up)
+                            if success:
+                                st.success("Account created! You can now Sign In.")
+                            else:
+                                st.error(f"Signup failed: {result.replace('_', ' ').title()}")
+                    else:
+                        st.warning("Please fill out all fields.")
 
 else:
     # ==========================================
     # 🔓 THE MAIN APP (Only runs if logged in)
     # ==========================================
     with st.sidebar:
-        # Added Logout Button
-        st.markdown(f"👤 **Logged in as:** `{st.session_state.current_user}`")
+        st.markdown(f"👤 **Secure Vault Active**")
         if st.button("🚪 Logout", use_container_width=True):
             st.session_state.current_user = None
             st.session_state.ledger_records = []
@@ -76,16 +112,10 @@ else:
             label_visibility="collapsed"
         )
         
-        st.markdown("📚 **Guru Knowledge Base**")
-        kb_pdf = st.file_uploader("Upload PDF", type=['pdf'], help="Limit 200MB per file • PDF")
-        if kb_pdf:
-            st.success(f"{kb_pdf.name} loaded!")
-
         st.divider()
         
         if st.button("🔄 Sync with Firebase", use_container_width=True):
             with st.spinner("Fetching data..."):
-                # UPDATED: Now passes the specific user_id to Firestore!
                 data = load_from_firestore(st.session_state.current_user)
                 if data is not None:
                     st.session_state.ledger_records = data
@@ -143,7 +173,6 @@ else:
                     new_tx = {"Date": str(dt), "Amount": amt, "Category": cat, "Advice": advice}
                     st.session_state.ledger_records.insert(0, new_tx)
                     
-                    # UPDATED: Now saves the transaction with the user's name!
                     save_to_firestore(new_tx, st.session_state.current_user) 
                     st.success("✅ Transaction Logged!")
                 else:
@@ -187,7 +216,6 @@ else:
                             new_tx = {"Date": str(final_dt), "Amount": final_amt, "Category": final_cat, "Advice": advice}
                             st.session_state.ledger_records.insert(0, new_tx)
                             
-                            # UPDATED: Now saves the transaction with the user's name!
                             save_to_firestore(new_tx, st.session_state.current_user)
                             
                             st.toast("✅ Transaction Logged!")
@@ -202,18 +230,15 @@ else:
     st.divider()
 
     # --- ANALYTICS DASHBOARD ---
-    st.divider()
     st.markdown("### 📊 Spending Analytics")
 
     if st.session_state.ledger_records:
-        # 1. Prepare the data
         df_chart = pd.DataFrame(st.session_state.ledger_records)
         df_chart['Amount'] = pd.to_numeric(df_chart['Amount'])
         df_chart['Date'] = pd.to_datetime(df_chart['Date'])
         
         col_chart1, col_chart2 = st.columns(2)
         
-        # 2. Donut Chart: Spending by Category
         with col_chart1:
             st.markdown("**Where your money goes**")
             cat_df = df_chart.groupby("Category")["Amount"].sum().reset_index()
@@ -223,7 +248,6 @@ else:
             fig_pie.update_layout(margin=dict(t=0, b=0, l=0, r=0), showlegend=False)
             st.plotly_chart(fig_pie, use_container_width=True)
 
-        # 3. Line Chart: Daily Spending Trend
         with col_chart2:
             st.markdown("**Daily Spending Trend**")
             trend_df = df_chart.groupby("Date")["Amount"].sum().reset_index()
@@ -245,16 +269,12 @@ else:
             st.warning("Log some transactions first so I have data to analyze!")
         else:
             with st.spinner(f"Crunching the numbers... {ai_mentor} is reviewing your accounts..."):
-                # 1. Format the data into a clean text list for the AI to read
                 history_text = "\n".join([
                     f"{tx.get('Date', 'Unknown Date')} - {tx.get('Category', 'Other')}: ₹{tx.get('Amount', 0)}" 
                     for tx in st.session_state.ledger_records
                 ])
-                
-                # 2. Call the new AI function
                 audit_result = get_monthly_audit(history_text, ai_mentor)
             
-            # 3. Display the result in a nice, highlighted box
             with st.container(border=True):
                 st.markdown(f"#### 📜 Official Audit by {ai_mentor}")
                 st.info(audit_result)
@@ -264,29 +284,21 @@ else:
     st.markdown(f"### 💬 Ask {ai_mentor} Anything")
     st.caption("Ask follow-up questions about your budget, transactions, or general financial advice.")
 
-    # 1. Display all previous messages in the chat window
     for message in st.session_state.chat_messages:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
-    # 2. The chat input box at the bottom
     if prompt := st.chat_input("E.g., How can I reduce my food budget?"):
-        
-        # Show the user's message immediately
         with st.chat_message("user"):
             st.markdown(prompt)
             
-        # Save the user's message to memory
         st.session_state.chat_messages.append({"role": "user", "content": prompt})
         
-        # Show the AI thinking, then display the response
         with st.chat_message("assistant"):
             with st.spinner(f"{ai_mentor} is typing..."):
-                # Call our new AI function, passing the history (excluding the message we just added)
                 ai_response = get_chat_response(prompt, st.session_state.chat_messages[:-1], ai_mentor)
                 st.markdown(ai_response)
                 
-        # Save the AI's response to memory
         st.session_state.chat_messages.append({"role": "assistant", "content": ai_response})
 
     st.subheader("📜 Recent Transactions")
