@@ -9,7 +9,6 @@ warnings.filterwarnings("ignore")
 # Import our custom backend functions
 from database import save_to_firestore, load_from_firestore, sign_in_with_email_and_password, sign_up_with_email_and_password
 from advisor import get_financial_advice, get_monthly_audit, get_chat_response
-# (Assuming ocr_engine.py is in your src folder handling the image extraction)
 from ocr_engine import extract_expense_from_image 
 
 st.set_page_config(page_title="Ledgr AI: Expense Manager", page_icon="💰", layout="wide")
