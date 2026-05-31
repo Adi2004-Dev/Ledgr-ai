@@ -5,10 +5,9 @@ import streamlit as st
 
 # 1. Initialize Firebase Securely from Secrets
 if not firebase_admin._apps:
-    # Streamlit automatically turns [firebase] into a dictionary!
     key_dict = dict(st.secrets["firebase"])
     
-    # Pass the dictionary directly to Firebase
+    
     cred = credentials.Certificate(key_dict)
     firebase_admin.initialize_app(cred)
 
@@ -27,7 +26,7 @@ def save_to_firestore(transaction_data, user_id):
 
 def load_from_firestore(user_id):
     try:
-        # 🔒 ONLY fetch documents that belong to this specific user
+        # ONLY fetch documents that belong to this specific user
         docs = db.collection("transactions").where("user_id", "==", user_id).get()
         
         records = []
