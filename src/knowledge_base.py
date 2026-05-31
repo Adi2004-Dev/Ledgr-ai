@@ -14,14 +14,14 @@ def create_knowledge_base(pdf_path):
         loader = PyPDFLoader(pdf_path)
         documents = loader.load()
 
-        # Larger chunks = fewer API calls (stays under the 100/min limit)
+        
         text_splitter = RecursiveCharacterTextSplitter(chunk_size=2000, chunk_overlap=200)
         docs = text_splitter.split_documents(documents)
 
-        # Using the stable 2026 Embedding model
+        
         embeddings = GoogleGenerativeAIEmbeddings(model="models/gemini-embedding-2-preview")
 
-        # Process in small batches with a cooldown
+        
         vector_store = None
         for i in range(0, len(docs), 5):
             batch = docs[i:i+5]
@@ -29,7 +29,7 @@ def create_knowledge_base(pdf_path):
                 vector_store = FAISS.from_documents(batch, embeddings)
             else:
                 vector_store.add_documents(batch)
-            time.sleep(2) # 2-second pause to reset quota
+            time.sleep(2) 
 
         vector_store.save_local("faiss_index")
         return "✅ Guru Knowledge Base Updated Successfully!"
